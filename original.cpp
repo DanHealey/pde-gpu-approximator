@@ -40,9 +40,9 @@ double f(double x, double y,  double z){
 }
 
 void generate_boundaries(double* mat, size_t N, double h, double x0, double x1, double y0, double y1, double z0, double z1) {
-    for (size_t i = 0; i < N; i++) {
+    for (size_t k = 0; k < N; k++) {
         for (size_t j = 0; j < N; j++) {
-            for (size_t k = 0; k < N; k++) {
+            for (size_t i = 0; i < N; i++) {
                 double x = x0 + i * h;
                 double y = y0 + j * h;
                 double z = z0 + k * h;
@@ -57,13 +57,17 @@ void generate_boundaries(double* mat, size_t N, double h, double x0, double x1, 
 
 void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, double h) {
     // u[i,j,k] = (sum of 6 neighbors - f(x,y,z) * h^2) / 6
-    for (size_t i = 1; i < N - 1; i++) {
+    for (size_t k = 1; k < N - 1; k++) {
         for (size_t j = 1; j < N - 1; j++) {
-            for (size_t k = 1; k < N - 1; k++) {
-                phi[i + j*N + k*N*N] = (phi_old[(i-1) + j*N + k*N*N] +
-                phi_old[(i+1) + j*N + k*N*N] + phi_old[i + (j-1)*N + k*N*N] +
-                phi_old[i + (j+1)*N + k*N*N] + phi_old[i + j*N + (k-1)*N*N] +
-                phi_old[i + j*N + (k+1)*N*N] - f_phi[i + j*N + k*N*N] * (h*h)) / 6.0;
+            for (size_t i = 1; i < N - 1; i++) {
+                phi[i + j*N + k*N*N] = (
+                    phi_old[(i-1) + j*N + k*N*N] +
+                    phi_old[(i+1) + j*N + k*N*N] +
+                    phi_old[i + (j-1)*N + k*N*N] +
+                    phi_old[i + (j+1)*N + k*N*N] +
+                    phi_old[i + j*N + (k-1)*N*N] +
+                    phi_old[i + j*N + (k+1)*N*N] -
+                    f_phi[i + j*N + k*N*N] * (h*h)) / 6.0;
             }
         }
     }
@@ -85,10 +89,10 @@ void finite_difference() {
     double phi[N * N * N]; // intermediate "new" phi(x, y, z)
     double phi_old[N * N * N]; // intermediate "old" phi(x, y, z)
 
-    // Intialize matrices
-    for (size_t i = 0; i < N; i++) {
+    // Initialize matrices
+    for (size_t k = 0; k < N; k++) {
         for (size_t j = 0; j < N; j++) {
-            for (size_t k = 0; k < N; k++) {
+            for (size_t i = 0; i < N; i++) {
                 double x = x0 + i * h;
                 double y = y0 + j * h;
                 double z = z0 + k * h;
@@ -128,9 +132,9 @@ void finite_difference() {
 
         // Calculate actual error
         error = 0.0;
-        for (size_t i = 0; i < N; i++) {
+        for (size_t k = 0; k < N; k++) {
             for (size_t j = 0; j < N; j++) {
-                for (size_t k = 0; k < N; k++) {
+                for (size_t i = 0; i < N; i++) {
                     double diff = phi[i + j*N + k*N*N] - phi_actual[i + j*N + k*N*N];
                     error += diff * diff;
                 }
