@@ -2,6 +2,8 @@
 
 OMP, MPI, so far added pragma oomps
 
+mpic++ distributed.cpp -lm > out
+
 - We can use all techniques n the same code or in separate codes and compare
 - Red-black is not a requirement but may be interesting to explore
 
