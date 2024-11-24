@@ -1,8 +1,9 @@
 # pde-gpu-approximator
-hello world :3
-hi :3
 
-OMP, MPI, 
+OMP, MPI, so far added pragma oomps
+
+- We can use all techniques n the same code or in separate codes and compare
+- Red-black is not a requirement but may be interesting to explore
 
 Red-black method or some other optimization?
 - https://www3.nd.edu/~zxu2/acms60212-40212-S12/Lec-10-02.pdf
