@@ -51,7 +51,7 @@ void generate_boundaries(double* mat, size_t N, size_t N_local, int size, double
                 double y = y0 + j * h;
                 double z = z0 + k * h + rank * N_local * h;
 
-                if (i == 0 || i == N-1 || j == 0 || j == N-1 || (rank == 0 && k == 0) || (rank == size - 1 &&k == N-1)) {
+                if (i == 0 || i == N-1 || j == 0 || j == N-1 || (rank == 0 && k == 0) || (rank == size - 1 &&k == N_local-1)) {
                     mat[i + j*N + k*N*N] = exact_phi(x, y, z);
                 }
             }
