@@ -168,7 +168,9 @@ void finite_difference() {
     double total_error = INFINITY;
     double total_conv = 0.0;
     int iter = 1;
+    double start_time = MPI_Wtime();
     do {
+        double iter_start = MPI_Wtime(); // Start iteration time
         MPI_Request requests[4];
         
         // Send bottom to rank+1 & receive top
@@ -216,13 +218,31 @@ void finite_difference() {
                 }
             }
         }
+
+        double iter_end = MPI_Wtime(); // End iteration time
+        double iter_time = iter_end - iter_start;
+        // Aggregate iteration timing across ranks
+        double max_time, min_time, avg_time;
+        MPI_Reduce(&iter_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+        MPI_Reduce(&iter_time, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&iter_time, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+        avg_time /= size;
         
          if (rank == 0 && (iter < 10 || iter % 10 == 0)) {
+            printf("Iteration %d: Max Time: %f, Min Time: %f, Avg Time: %f\n", iter, max_time, min_time, avg_time);
             printf("Square difference: %f\n", total_conv);
             printf("Actual error: %f\n", total_error);
          }
                 
     } while (total_conv > tol);
+
+    double end_time = MPI_Wtime(); // End total time
+    if (rank == 0) {
+        printf("[FINAL RESULT]\n");
+        printf("Total computation time: %f seconds\n", end_time - start_time);
+        printf("Iterations: %d\n", iter);
+        printf("Error: %f\n", total_error);
+    }
 
 }
 
