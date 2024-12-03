@@ -3,11 +3,16 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <sys/time.h>
 
 __device__ double pi = 3.14159265358979323846;
 __device__ constexpr double n1 = 2;
 __device__ constexpr double m1 = 2;
 __device__ constexpr double k1 = 2;
+
+long long time_diff(struct timeval start, struct timeval end) {
+    return (end.tv_sec - start.tv_sec) * 1000000LL + (end.tv_usec - start.tv_usec);
+}
 
 __device__ double exact_phi(double x, double y, double z) {
     return sin(n1 * pi * x) * cos(m1 * pi * y) * sin(k1 * pi * z);
@@ -80,6 +85,18 @@ __global__ void compute_error_and_convergence(double* phi, double* phi_old, doub
 hipError_t GPU_ERROR;
 
 void finite_difference() {
+
+    // METRICS
+    long long average_time_per_iteration;
+    long long min_time_per_iteration;
+    long long max_time_per_iteration;
+    long long total_time;
+    long long avg_time_per_iteration;
+
+    struct timeval start_all, end_all, start_iter, end_iter;
+
+    gettimeofday(&start_all, NULL);
+
     const size_t N = 10;
     const double h = 1.0 / (N - 1);
     const double tol = 1e-6;
@@ -108,7 +125,11 @@ void finite_difference() {
 
     double error = INFINITY;
     double conv = INFINITY;
+    int iter = 1;
     do {
+
+        gettimeofday(&start_iter, NULL);
+
         update_phi<<<numBlocks, threadsPerBlock>>>(d_phi, d_phi_old, d_f_phi, N, h);
         GPU_ERROR = hipDeviceSynchronize();
 
@@ -122,8 +143,31 @@ void finite_difference() {
         GPU_ERROR = hipMemcpy(&error, d_error, sizeof(double), hipMemcpyDeviceToHost);
         GPU_ERROR = hipMemcpy(&conv, d_conv, sizeof(double), hipMemcpyDeviceToHost);
 
+        gettimeofday(&end_iter, NULL);
+
+        long long time_per_iteration = time_diff(start_iter, end_iter);
+
+        if (iter == 1) {
+            min_time_per_iteration = time_per_iteration;
+            max_time_per_iteration = time_per_iteration;
+        } else {
+            min_time_per_iteration = std::min(min_time_per_iteration, time_per_iteration);
+            max_time_per_iteration = std::max(max_time_per_iteration, time_per_iteration);
+        }
+
+        total_time += time_per_iteration;
+        avg_time_per_iteration = total_time / iter;
+
+        printf("Iteration %d: Max Time: %lld us, Min Time: %lld us, Avg Time: %lld us\n", 
+            iter, 
+            max_time_per_iteration, 
+            min_time_per_iteration, 
+            avg_time_per_iteration
+        );
         std::cout << "Error: " << error << std::endl;
         std::cout << "Convergence: " << conv << std::endl;
+
+        iter++;
     } while (conv > tol);
 
     GPU_ERROR = hipMemcpy(phi, d_phi, size, hipMemcpyDeviceToHost);
@@ -133,6 +177,18 @@ void finite_difference() {
     GPU_ERROR = hipFree(d_phi_actual);
     GPU_ERROR = hipFree(d_f_phi);
     GPU_ERROR = hipFree(d_error);
+
+    gettimeofday(&end_all, NULL);
+
+    total_time = time_diff(start_all, end_all);
+    
+    printf("[FINAL RESULT]\n");
+    printf("Total computation time: %lld us\n", total_time);
+    printf("Average iteration time: %lld us\n", avg_time_per_iteration);
+    printf("Minimum iteration time: %lld us\n", min_time_per_iteration);
+    printf("Maximum iteration time: %lld us\n", max_time_per_iteration);
+    printf("Iterations: %d\n", iter);
+    printf("Error: %f\n", error);
 
 }
 

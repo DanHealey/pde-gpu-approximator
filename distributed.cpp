@@ -229,7 +229,7 @@ void finite_difference() {
         avg_time /= size;
         
          if (rank == 0 && (iter < 10 || iter % 10 == 0)) {
-            printf("Iteration %d: Max Time: %f, Min Time: %f, Avg Time: %f\n", iter, max_time, min_time, avg_time);
+            printf("Iteration %d:\n", iter);
             printf("Square difference: %f\n", total_conv);
             printf("Actual error: %f\n", total_error);
          }
@@ -240,6 +240,9 @@ void finite_difference() {
     if (rank == 0) {
         printf("[FINAL RESULT]\n");
         printf("Total computation time: %f seconds\n", end_time - start_time);
+        printf("Average iteration time: %f seconds\n", avg_time);
+        printf("Minimum iteration time: %f seconds\n", min_time);
+        printf("Maximum iteration time: %f seconds\n", max_time);
         printf("Iterations: %d\n", iter);
         printf("Error: %f\n", total_error);
     }

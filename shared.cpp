@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <omp.h>
+#include <sys/time.h>
 
 
 /* Task
@@ -30,6 +31,10 @@ double const pi = 4 * atan(1.0);
 double const n1 = 2;
 double const m1 = 2;
 double const k1 = 2;
+
+long long time_diff(struct timeval start, struct timeval end) {
+    return (end.tv_sec - start.tv_sec) * 1000000LL + (end.tv_usec - start.tv_usec);
+}
 
 double exact_phi(double x, double y, double z){
     return sin(n1*pi*x)*cos(m1*pi*y)*sin(k1*pi*z);
@@ -76,6 +81,18 @@ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, double h)
 }
 
 void finite_difference() {
+
+    // METRICS
+    long long average_time_per_iteration;
+    long long min_time_per_iteration;
+    long long max_time_per_iteration;
+    long long total_time = 0;
+    long long avg_time_per_iteration;
+
+    struct timeval start_all, end_all, start_iter, end_iter;
+
+    gettimeofday(&start_all, NULL);
+
     const double x0 = 0;
     const double x1 = 1;
     const double y0 = 0;
@@ -114,7 +131,11 @@ void finite_difference() {
     
     double error = INFINITY;
     double square_diff = 0.0;
+    int iter = 1;
     do {
+
+        gettimeofday(&start_iter, NULL);
+
         // Update phi
         update_phi(phi, phi_old, f_phi, N, h);
 
@@ -132,8 +153,6 @@ void finite_difference() {
                 }
             }
         }
-        printf("Square difference: %f\n", square_diff);
-
         // Calculate actual error
         error = 0.0;
         #pragma omp parallel for reduction(+:error) collapse(3)
@@ -145,9 +164,43 @@ void finite_difference() {
                 }
             }
         }
-        printf("Actual error: %f\n", error);
+
+        gettimeofday(&end_iter, NULL);
+        long long iter_time = time_diff(start_iter, end_iter);
+        total_time += iter_time;
+        avg_time_per_iteration = total_time / iter;
+
+        if (iter == 1) {
+            min_time_per_iteration = iter_time;
+            max_time_per_iteration = iter_time;
+        } else {
+            min_time_per_iteration = std::min(min_time_per_iteration, iter_time);
+            max_time_per_iteration = std::max(max_time_per_iteration, iter_time);
+        }
+
+        printf("Iteration %d: Max Time: %lld us, Min Time: %lld us, Avg Time: %lld us\n", 
+            iter, 
+            max_time_per_iteration, 
+            min_time_per_iteration, 
+            avg_time_per_iteration
+        );
+        printf("Error: %f\n", error);
+        printf("Convergence: %f\n", square_diff);
+        iter++;
                 
     } while (square_diff > tol);
+
+    gettimeofday(&end_all, NULL);
+
+    total_time = time_diff(start_all, end_all);
+    
+    printf("[FINAL RESULT]\n");
+    printf("Total computation time: %lld us\n", total_time);
+    printf("Average iteration time: %lld us\n", avg_time_per_iteration);
+    printf("Minimum iteration time: %lld us\n", min_time_per_iteration);
+    printf("Maximum iteration time: %lld us\n", max_time_per_iteration);
+    printf("Iterations: %d\n", iter);
+    printf("Error: %f\n", error);
 
 }
 
