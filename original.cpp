@@ -128,7 +128,6 @@ void finite_difference() {
                 }
             }
         }
-        printf("Square difference: %f\n", square_diff);
 
         // Calculate actual error
         error = 0.0;
@@ -140,7 +139,6 @@ void finite_difference() {
                 }
             }
         }
-        printf("Actual error: %f\n", error);
                 
     } while (square_diff > tol);
 

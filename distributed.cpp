@@ -223,8 +223,9 @@ void finite_difference() {
 
         double iter_end = MPI_Wtime(); // End iteration time
         double iter_time = iter_end - iter_start;
+        if (iter >= 10){
         // Aggregate iteration timing across ranks
-        if (iter == 1) {
+        if (iter == 10) {
             min_time = iter_time;
             max_time = iter_time;
             avg_time = iter_time;
@@ -232,13 +233,14 @@ void finite_difference() {
 
         if (iter_time < min_time) min_time = iter_time;
         if (iter_time > max_time) max_time = iter_time;
+        }
         avg_time += iter_time;
         
-         if (rank == 0 && (iter < 10 || iter % 100 == 0)) {
-            printf("Iteration %d:\n", iter);
-            printf("Square difference: %f\n", total_conv);
-            printf("Actual error: %f\n", total_error);
-         }
+        //  if (rank == 0 && (iter < 10 || iter % 100 == 0)) {
+        //     printf("Iteration %d:\n", iter);
+        //     printf("Square difference: %f\n", total_conv);
+        //     printf("Actual error: %f\n", total_error);
+        //  }
          iter++;
                 
     } while (total_conv > tol);
@@ -247,7 +249,7 @@ void finite_difference() {
     if (rank == 0) {
         printf("[FINAL RESULT]\n");
         printf("Total computation time: %0.2f us\n", (end_time - start_time) * 1e6);
-        printf("Average iteration time: %0.2f us\n", (avg_time / iter)* 1e6);
+        printf("Average iteration time: %0.2f us\n", (avg_time / (iter-10))* 1e6);
         printf("Minimum iteration time: %0.2f us\n", min_time* 1e6);
         printf("Maximum iteration time: %0.2f us\n", max_time* 1e6);
         printf("Iterations: %d\n", iter);

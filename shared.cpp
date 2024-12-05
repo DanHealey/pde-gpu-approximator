@@ -45,7 +45,8 @@ double f(double x, double y,  double z){
     return -(k1*k1 + m1*m1 + n1*n1) * (pi*pi) * exact_phi(x, y, z);
 }
 
-void generate_boundaries(double* mat, size_t N, double h, double x0, double x1, double y0, double y1, double z0, double z1) {
+void generate_boundaries(double* mat, size_t N, double h, double x0,
+    double x1, double y0, double y1, double z0, double z1) {
     #pragma omp parallel for collapse(3)
     for (size_t k = 0; k < N; k++) {
         for (size_t j = 0; j < N; j++) {
@@ -54,7 +55,8 @@ void generate_boundaries(double* mat, size_t N, double h, double x0, double x1, 
                 double y = y0 + j * h;
                 double z = z0 + k * h;
 
-                if (i == 0 || i == N-1 || j == 0 || j == N-1 || k == 0 || k == N-1) {
+                if (i == 0 || i == N-1 || j == 0
+                    || j == N-1 || k == 0 || k == N-1) {
                     mat[i + j*N + k*N*N] = exact_phi(x, y, z);
                 }
             }
@@ -67,14 +69,15 @@ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, double h)
     for (size_t k = 1; k < N - 1; k++) {
         for (size_t j = 1; j < N - 1; j++) {
             for (size_t i = 1; i < N - 1; i++) {
-                phi[i + j*N + k*N*N] = (
+                size_t idx = i + j * N + k * N * N;
+                phi[idx] = (
                     phi_old[(i-1) + j*N + k*N*N] +
                     phi_old[(i+1) + j*N + k*N*N] +
                     phi_old[i + (j-1)*N + k*N*N] +
                     phi_old[i + (j+1)*N + k*N*N] +
                     phi_old[i + j*N + (k-1)*N*N] +
                     phi_old[i + j*N + (k+1)*N*N] -
-                    f_phi[i + j*N + k*N*N] * (h*h)) / 6.0;
+                    f_phi[idx] * (h*h)) / 6.0;
             }
         }
     }
