@@ -87,16 +87,11 @@ __global__ void compute_error_and_convergence(double* phi, double* phi_old, doub
 hipError_t GPU_ERROR;
 
 void finite_difference() {
-
     // METRICS
-    long long min_time_per_iteration;
-    long long max_time_per_iteration;
-    long long total_time = 0;
-    long long avg_time_per_iteration = 0;
+    long long min_iteration_time, max_iteration_time, total_time = 0, avg_iteration_time;
+    struct timeval start_time, end_time, start_iter_time, end_iter_time;
 
-    struct timeval start_all, end_all, start_iter, end_iter;
-
-    gettimeofday(&start_all, NULL);
+    gettimeofday(&start_time, NULL);
 
     const size_t N = 10;
     const double h = 1.0 / (N - 1);
@@ -126,10 +121,10 @@ void finite_difference() {
 
     double error = INFINITY;
     double conv = INFINITY;
-    int iter = 1;
-    do {
+    int iteration = 1;
 
-        gettimeofday(&start_iter, NULL);
+    do {
+        gettimeofday(&start_iter_time, NULL);
 
         update_phi<<<numBlocks, threadsPerBlock>>>(d_phi, d_phi_old, d_f_phi, N, h);
         GPU_ERROR = hipDeviceSynchronize();
@@ -144,32 +139,31 @@ void finite_difference() {
         GPU_ERROR = hipMemcpy(&error, d_error, sizeof(double), hipMemcpyDeviceToHost);
         GPU_ERROR = hipMemcpy(&conv, d_conv, sizeof(double), hipMemcpyDeviceToHost);
 
-        if (iter >= 10) {
-            gettimeofday(&end_iter, NULL);
-
-            long long time_per_iteration = time_diff(start_iter, end_iter);
-            if (iter == 10) {
-                min_time_per_iteration = time_per_iteration;
-                max_time_per_iteration = time_per_iteration;
+        // Start tracking from 10th iteration
+        if (iteration >= 10) {
+            gettimeofday(&end_iter_time, NULL);
+            long long iteration_time = time_diff(start_iter_time, end_iter_time);
+            if (iteration == 10) {
+                min_iteration_time = iteration_time;
+                max_iteration_time = iteration_time;
             } else {
-                min_time_per_iteration = std::min(min_time_per_iteration, time_per_iteration);
-                max_time_per_iteration = std::max(max_time_per_iteration, time_per_iteration);
+                min_iteration_time = std::min(min_iteration_time, iteration_time);
+                max_iteration_time = std::max(max_iteration_time, iteration_time);
             }
-
-            total_time += time_per_iteration;
-            avg_time_per_iteration = total_time / (iter-9);
+            total_time += iteration_time;
+            avg_iteration_time = total_time / (iteration - 9);
         }
 
         // printf("Iteration %d: Max Time: %lld us, Min Time: %lld us, Avg Time: %lld us\n", 
         //     iter, 
-        //     max_time_per_iteration, 
-        //     min_time_per_iteration, 
-        //     avg_time_per_iteration
+        //     max_iteration_time, 
+        //     min_iteration_time, 
+        //     avg_iteration_time
         // );
         //std::cout << "Error: " << error << std::endl;
         //std::cout << "Convergence: " << conv << std::endl;
 
-        iter++;
+        iteration++;
     } while (conv > tol);
 
     GPU_ERROR = hipMemcpy(phi, d_phi, size, hipMemcpyDeviceToHost);
@@ -180,16 +174,16 @@ void finite_difference() {
     GPU_ERROR = hipFree(d_f_phi);
     GPU_ERROR = hipFree(d_error);
 
-    gettimeofday(&end_all, NULL);
+    gettimeofday(&end_time, NULL);
 
-    total_time = time_diff(start_all, end_all);
+    total_time = time_diff(start_time, end_time);
     
     printf("[FINAL RESULT]\n");
     printf("Total computation time: %lld us\n", total_time);
-    printf("Average iteration time: %lld us\n", avg_time_per_iteration);
-    printf("Minimum iteration time: %lld us\n", min_time_per_iteration);
-    printf("Maximum iteration time: %lld us\n", max_time_per_iteration);
-    printf("Iterations: %d\n", iter);
+    printf("Average iteration time: %lld us\n", avg_iteration_time);
+    printf("Minimum iteration time: %lld us\n", min_iteration_time);
+    printf("Maximum iteration time: %lld us\n", max_iteration_time);
+    printf("Iterations: %d\n", iteration);
     printf("Error: %f\n", error);
 
 }

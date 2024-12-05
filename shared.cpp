@@ -84,25 +84,13 @@ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, double h)
 }
 
 void finite_difference() {
-
     // METRICS
-    long long average_time_per_iteration;
-    long long min_time_per_iteration;
-    long long max_time_per_iteration;
-    long long total_time = 0;
-    long long avg_time_per_iteration;
+    long long min_iteration_time, max_iteration_time, total_time = 0, avg_iteration_time;
+    struct timeval start_time, end_time, start_iter_time, end_iter_time;
 
-    struct timeval start_all, end_all, start_iter, end_iter;
+    gettimeofday(&start_time, NULL);
 
-    gettimeofday(&start_all, NULL);
-
-    const double x0 = 0;
-    const double x1 = 1;
-    const double y0 = 0;
-    const double y1 = 1;
-    const double z0 = 0;
-    const double z1 = 1;
-    const double tol = 1e-6;
+    const double x0 = 0, x1 = 1, y0 = 0, y1 = 1, z0 = 0, z1 = 1, tol = 1e-6;
     const int N = 10;
     const double h = 1.0 / (N - 1);
 
@@ -119,25 +107,23 @@ void finite_difference() {
                 double x = x0 + i * h;
                 double y = y0 + j * h;
                 double z = z0 + k * h;
-                phi_actual[i + j*N + k*N*N] = exact_phi(x, y, z);
+                phi_actual[i + j * N + k * N * N] = exact_phi(x, y, z);
                 f_phi[i + j * N + k * N * N] = f(x, y, z);
-                phi[i + j*N + k*N*N] = 0.0;
-                phi_old[i + j*N + k*N*N] = 0.0;
+                phi[i + j * N + k * N * N] = 0.0;
+                phi_old[i + j * N + k * N * N] = 0.0;
             }
         }
     }
 
     // Generate boundaries
-    generate_boundaries(phi, N, h, x0, x1, y0, y1, z0, z1); // on phi
-    generate_boundaries(phi_old, N, h, x0, x1, y0, y1, z0, z1); // on phi old
+    generate_boundaries(phi, N, h, x0, x1, y0, y1, z0, z1);
+    generate_boundaries(phi_old, N, h, x0, x1, y0, y1, z0, z1);
 
-    
-    double error = INFINITY;
-    double square_diff = 0.0;
-    int iter = 1;
+    double error = INFINITY, square_diff = 0.0;
+    int iteration = 1;
+
     do {
-
-        gettimeofday(&start_iter, NULL);
+        gettimeofday(&start_iter_time, NULL);
 
         // Update phi
         update_phi(phi, phi_old, f_phi, N, h);
@@ -151,60 +137,52 @@ void finite_difference() {
         for (size_t k = 0; k < N; k++) {
             for (size_t j = 0; j < N; j++) {
                 for (size_t i = 0; i < N; i++) {
-                    double diff = phi[i + j*N + k*N*N] - phi_old[i + j*N + k*N*N];
+                    double diff = phi[i + j * N + k * N * N] - phi_old[i + j * N + k * N * N];
                     square_diff += diff * diff;
                 }
             }
         }
+
         // Calculate actual error
         error = 0.0;
         #pragma omp parallel for reduction(+:error) collapse(3)
         for (size_t k = 0; k < N; k++) {
             for (size_t j = 0; j < N; j++) {
                 for (size_t i = 0; i < N; i++) {
-                    double diff = phi[i + j*N + k*N*N] - phi_actual[i + j*N + k*N*N];
+                    double diff = phi[i + j * N + k * N * N] - phi_actual[i + j * N + k * N * N];
                     error += diff * diff;
                 }
             }
         }
 
-        gettimeofday(&end_iter, NULL);
-        long long iter_time = time_diff(start_iter, end_iter);
-        total_time += iter_time;
-        avg_time_per_iteration = total_time / iter;
-
-        if (iter == 1) {
-            min_time_per_iteration = iter_time;
-            max_time_per_iteration = iter_time;
-        } else {
-            min_time_per_iteration = std::min(min_time_per_iteration, iter_time);
-            max_time_per_iteration = std::max(max_time_per_iteration, iter_time);
+        // Start tracking from 10th iteration
+        if (iteration >= 10) {
+            gettimeofday(&end_iter_time, NULL);
+            long long iteration_time = time_diff(start_iter_time, end_iter_time);
+            if (iteration == 10) {
+                min_iteration_time = iteration_time;
+                max_iteration_time = iteration_time;
+            } else {
+                min_iteration_time = std::min(min_iteration_time, iteration_time);
+                max_iteration_time = std::max(max_iteration_time, iteration_time);
+            }
+            total_time += iteration_time;
+            avg_iteration_time = total_time / (iteration - 9);
         }
 
-        printf("Iteration %d: Max Time: %lld us, Min Time: %lld us, Avg Time: %lld us\n", 
-            iter, 
-            max_time_per_iteration, 
-            min_time_per_iteration, 
-            avg_time_per_iteration
-        );
-        printf("Error: %f\n", error);
-        printf("Convergence: %f\n", square_diff);
-        iter++;
-                
+        iteration++;
     } while (square_diff > tol);
 
-    gettimeofday(&end_all, NULL);
+    gettimeofday(&end_time, NULL);
+    total_time = time_diff(start_time, end_time);
 
-    total_time = time_diff(start_all, end_all);
-    
     printf("[FINAL RESULT]\n");
     printf("Total computation time: %lld us\n", total_time);
-    printf("Average iteration time: %lld us\n", avg_time_per_iteration);
-    printf("Minimum iteration time: %lld us\n", min_time_per_iteration);
-    printf("Maximum iteration time: %lld us\n", max_time_per_iteration);
-    printf("Iterations: %d\n", iter);
+    printf("Average iteration time: %lld us\n", avg_iteration_time);
+    printf("Minimum iteration time: %lld us\n", min_iteration_time);
+    printf("Maximum iteration time: %lld us\n", max_iteration_time);
+    printf("Iterations: %d\n", iteration);
     printf("Error: %f\n", error);
-
 }
 
 

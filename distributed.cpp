@@ -111,15 +111,10 @@ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, size_t N_
 }
 
 void finite_difference() {
-    const double x0 = 0;
-    const double x1 = 1;
-    const double y0 = 0;
-    const double y1 = 1;
-    const double z0 = 0;
-    const double z1 = 1;
-    const double tol = 1e-6;
+    const double x0 = 0, x1 = 1, y0 = 0, y1 = 1, z0 = 0, z1 = 1, tol = 1e-6;
     const int N = 10;
     const double h = 1.0 / (N - 1);
+    
     double max_time, min_time, avg_time;
     double local_conv, local_error;
 
@@ -223,16 +218,16 @@ void finite_difference() {
 
         double iter_end = MPI_Wtime(); // End iteration time
         double iter_time = iter_end - iter_start;
-        if (iter >= 10){
-        // Aggregate iteration timing across ranks
-        if (iter == 10) {
-            min_time = iter_time;
-            max_time = iter_time;
-            avg_time = iter_time;
-        }
+        if (iter >= 10) {
+            // Aggregate iteration timing across ranks
+            if (iter == 10) {
+                min_time = iter_time;
+                max_time = iter_time;
+                avg_time = iter_time;
+            }
 
-        if (iter_time < min_time) min_time = iter_time;
-        if (iter_time > max_time) max_time = iter_time;
+            if (iter_time < min_time) min_time = iter_time;
+            if (iter_time > max_time) max_time = iter_time;
         }
         avg_time += iter_time;
         
@@ -241,7 +236,7 @@ void finite_difference() {
         //     printf("Square difference: %f\n", total_conv);
         //     printf("Actual error: %f\n", total_error);
         //  }
-         iter++;
+        iter++;
                 
     } while (total_conv > tol);
 
