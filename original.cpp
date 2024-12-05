@@ -144,7 +144,6 @@ void finite_difference() {
                 }
             }
         }
-        
 
         // Calculate actual error
         error = 0.0;

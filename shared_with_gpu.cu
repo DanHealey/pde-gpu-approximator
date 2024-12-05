@@ -45,12 +45,14 @@ __global__ void initialize(double* phi, double* phi_old, double* phi_actual, dou
     }
 }
 
-__global__ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, double h) {
+__global__ void update_phi(double* phi, double* phi_old, 
+    double* f_phi, size_t N, double h) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     int k = blockIdx.z * blockDim.z + threadIdx.z;
 
-    if (i > 0 && i < N - 1 && j > 0 && j < N - 1 && k > 0 && k < N - 1) {
+    if (i > 0 && i < N - 1 && j > 0 
+        && j < N - 1 && k > 0 && k < N - 1) {
         size_t idx = i + j * N + k * N * N;
         phi[idx] = (
             phi_old[(i - 1) + j * N + k * N * N] +
@@ -87,11 +89,10 @@ hipError_t GPU_ERROR;
 void finite_difference() {
 
     // METRICS
-    long long average_time_per_iteration;
     long long min_time_per_iteration;
     long long max_time_per_iteration;
-    long long total_time;
-    long long avg_time_per_iteration;
+    long long total_time = 0;
+    long long avg_time_per_iteration = 0;
 
     struct timeval start_all, end_all, start_iter, end_iter;
 
@@ -143,29 +144,30 @@ void finite_difference() {
         GPU_ERROR = hipMemcpy(&error, d_error, sizeof(double), hipMemcpyDeviceToHost);
         GPU_ERROR = hipMemcpy(&conv, d_conv, sizeof(double), hipMemcpyDeviceToHost);
 
-        gettimeofday(&end_iter, NULL);
+        if (iter >= 10) {
+            gettimeofday(&end_iter, NULL);
 
-        long long time_per_iteration = time_diff(start_iter, end_iter);
+            long long time_per_iteration = time_diff(start_iter, end_iter);
+            if (iter == 10) {
+                min_time_per_iteration = time_per_iteration;
+                max_time_per_iteration = time_per_iteration;
+            } else {
+                min_time_per_iteration = std::min(min_time_per_iteration, time_per_iteration);
+                max_time_per_iteration = std::max(max_time_per_iteration, time_per_iteration);
+            }
 
-        if (iter == 1) {
-            min_time_per_iteration = time_per_iteration;
-            max_time_per_iteration = time_per_iteration;
-        } else {
-            min_time_per_iteration = std::min(min_time_per_iteration, time_per_iteration);
-            max_time_per_iteration = std::max(max_time_per_iteration, time_per_iteration);
+            total_time += time_per_iteration;
+            avg_time_per_iteration = total_time / (iter-9);
         }
 
-        total_time += time_per_iteration;
-        avg_time_per_iteration = total_time / iter;
-
-        printf("Iteration %d: Max Time: %lld us, Min Time: %lld us, Avg Time: %lld us\n", 
-            iter, 
-            max_time_per_iteration, 
-            min_time_per_iteration, 
-            avg_time_per_iteration
-        );
-        std::cout << "Error: " << error << std::endl;
-        std::cout << "Convergence: " << conv << std::endl;
+        // printf("Iteration %d: Max Time: %lld us, Min Time: %lld us, Avg Time: %lld us\n", 
+        //     iter, 
+        //     max_time_per_iteration, 
+        //     min_time_per_iteration, 
+        //     avg_time_per_iteration
+        // );
+        //std::cout << "Error: " << error << std::endl;
+        //std::cout << "Convergence: " << conv << std::endl;
 
         iter++;
     } while (conv > tol);
