@@ -118,8 +118,10 @@ void finite_difference() {
     const double z0 = 0;
     const double z1 = 1;
     const double tol = 1e-6;
-    const int N = 50;
+    const int N = 10;
     const double h = 1.0 / (N - 1);
+    double max_time, min_time, avg_time;
+    double local_conv, local_error;
 
     // Initialize MPI
     int rank, size;
@@ -150,11 +152,11 @@ void finite_difference() {
                 // Determine x, y, z of current point
                 double x = x0 + i * h;
                 double y = y0 + j * h;
-                double z = z0 + k * h + rank * N_local * h;
+                double z = z0 + (k + (rank * N_local)) * h;
 
                 // Initialize matrices
                 phi_actual[i + j*N + k*N*N] = exact_phi(x, y, z);
-                f_phi[i + j * N + k * N * N] = f(x, y, z);
+                f_phi[i + j*N + k*N*N] = f(x, y, z);
                 phi[i + j*N + k*N*N] = 0.0;
                 phi_old[i + j*N + k*N*N] = 0.0;
             }
@@ -175,7 +177,7 @@ void finite_difference() {
         
         // Send bottom to rank+1 & receive top
         if (rank < size - 1){
-            MPI_Isend(phi + N * N * (N_local - 1), N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[0]);
+            MPI_Isend(phi + (N * N * (N_local-1)), N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[0]);
             MPI_Irecv(top_buf, N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[2]);
             MPI_Wait(&requests[2], MPI_STATUS_IGNORE);
         }
@@ -193,11 +195,11 @@ void finite_difference() {
         update_phi_boundary(phi, phi_old, f_phi, N, N_local, h, top_buf, bottom_buf);
 
         // Calculate local convergence and error
-        double local_conv = 0.0;
-        double local_error = 0.0;
-        for (size_t i = 0; i < N; i++) {
-            for (size_t j = 0; j < N; j++) {
-                for (size_t k = 0; k < N; k++) {
+        local_conv = 0;
+        local_error = 0;
+        for (size_t k = 1; k < N_local-1; k++) {
+            for (size_t j = 1; j < N-1; j++) {
+                for (size_t i = 1; i < N-1; i++) {
                     double diff = phi[i + j*N + k*N*N] - phi_old[i + j*N + k*N*N];
                     local_conv += diff * diff;
 
@@ -211,7 +213,7 @@ void finite_difference() {
         MPI_Allreduce(&local_error, &total_error, 1, MPI_DOUBLE, MPI_SUM, comm);
 
         // Swap phi and phi_old
-        for (size_t k = 0; k < N; k++) {
+        for (size_t k = 0; k < N_local; k++) {
             for (size_t j = 0; j < N; j++) {
                 for (size_t i = 0; i < N; i++) {
                     phi_old[i + j*N + k*N*N] = phi[i + j*N + k*N*N];
@@ -222,27 +224,32 @@ void finite_difference() {
         double iter_end = MPI_Wtime(); // End iteration time
         double iter_time = iter_end - iter_start;
         // Aggregate iteration timing across ranks
-        double max_time, min_time, avg_time;
-        MPI_Reduce(&iter_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-        MPI_Reduce(&iter_time, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
-        MPI_Reduce(&iter_time, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
-        avg_time /= size;
+        if (iter == 1) {
+            min_time = iter_time;
+            max_time = iter_time;
+            avg_time = iter_time;
+        }
+
+        if (iter_time < min_time) min_time = iter_time;
+        if (iter_time > max_time) max_time = iter_time;
+        avg_time += iter_time;
         
-         if (rank == 0 && (iter < 10 || iter % 10 == 0)) {
+         if (rank == 0 && (iter < 10 || iter % 100 == 0)) {
             printf("Iteration %d:\n", iter);
             printf("Square difference: %f\n", total_conv);
             printf("Actual error: %f\n", total_error);
          }
+         iter++;
                 
     } while (total_conv > tol);
 
     double end_time = MPI_Wtime(); // End total time
     if (rank == 0) {
         printf("[FINAL RESULT]\n");
-        printf("Total computation time: %f seconds\n", end_time - start_time);
-        printf("Average iteration time: %f seconds\n", avg_time);
-        printf("Minimum iteration time: %f seconds\n", min_time);
-        printf("Maximum iteration time: %f seconds\n", max_time);
+        printf("Total computation time: %0.2f us\n", (end_time - start_time) * 1e6);
+        printf("Average iteration time: %0.2f us\n", (avg_time / iter)* 1e6);
+        printf("Minimum iteration time: %0.2f us\n", min_time* 1e6);
+        printf("Maximum iteration time: %0.2f us\n", max_time* 1e6);
         printf("Iterations: %d\n", iter);
         printf("Error: %f\n", total_error);
     }
