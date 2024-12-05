@@ -22,7 +22,7 @@ Total computation time: 288469 us
 Average iteration time: 111 us
 Minimum iteration time: 78 us
 Maximum iteration time: 1059 us
-Iterations: 37
+Iterations: 37 
 Error: 0.096650
 
 [DISTRIBUTED FINAL RESULT]
