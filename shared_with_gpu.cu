@@ -93,7 +93,7 @@ void finite_difference() {
 
     gettimeofday(&start_time, NULL);
 
-    const size_t N = 10;
+    const size_t N = 15;
     const double h = 1.0 / (N - 1);
     const double tol = 1e-6;
 

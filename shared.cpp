@@ -5,17 +5,7 @@
 #include <iostream>
 #include <omp.h>
 #include <sys/time.h>
-#include <vector> // Added for storing errors in a dynamic array
-
-/* Task
-    Goal: Solve for exact solution: phi = sin(n*π*x) * cos(m*π*y) * sin(k*π*z)
-        n, m, k are integers
-        x, y, z are in range 0 to 1
-
-    Given: f(x,y,z) = -(n²+m²+k²) π² cos(m π y) sin(n π x) sin(k π z)
-
-    3D Poisson equation: (∂²/∂x² + ∂²/∂y² + ∂²/∂z²) phi(x,y,z) = f(x,y,z)
-*/
+#include <vector>
 
 double const pi = 4 * atan(1.0);
 double const n1 = 2;
@@ -31,7 +21,7 @@ double exact_phi(double x, double y, double z){
 }
 
 double f(double x, double y,  double z){
-    // -(k^2 + m^2 + n^2) π² * cos(m π y) * sin(n π x) * sin(k π z)
+    // -(k^2 + m^2 + n^2) π² * cos(m π y) sin(n π x) sin(k π z)
     return -(k1*k1 + m1*m1 + n1*n1) * (pi*pi) * exact_phi(x, y, z);
 }
 
@@ -81,7 +71,7 @@ void finite_difference() {
     gettimeofday(&start_time, NULL);
 
     const double x0 = 0, x1 = 1, y0 = 0, y1 = 1, z0 = 0, z1 = 1, tol = 1e-6;
-    const int N = 60;
+    const int N = 15; // Change back to your desired N if needed
     const double h = 1.0 / (N - 1);
 
     double phi_actual[N * N * N]; 
@@ -112,7 +102,8 @@ void finite_difference() {
     double error = INFINITY, square_diff = 0.0;
     int iteration = 1;
 
-    std::vector<double> errors; // store error each iteration
+    std::vector<double> errors;    // store error each iteration
+    std::vector<double> residuals; // store residual (convergence difference) each iteration
 
     do {
         gettimeofday(&start_iter_time, NULL);
@@ -123,7 +114,7 @@ void finite_difference() {
         // Swap phi and phi_old
         std::swap(phi, phi_old);
 
-        // Calculate convergence difference
+        // Calculate convergence difference (residual)
         square_diff = 0.0;
         #pragma omp parallel for reduction(+:square_diff) collapse(3)
         for (size_t k = 0; k < N; k++) {
@@ -147,10 +138,11 @@ void finite_difference() {
             }
         }
 
-        // Store the error in the vector
+        // Store the error and residual
         errors.push_back(error);
+        residuals.push_back(square_diff);
 
-        // Start tracking from 10th iteration
+        // Start tracking iteration times from 10th iteration
         gettimeofday(&end_iter_time, NULL);
         if (iteration >= 10) {
             long long iteration_time = time_diff(start_iter_time, end_iter_time);
@@ -173,7 +165,8 @@ void finite_difference() {
     // Print final results
     printf("[FINAL RESULT]\n");
     printf("Iterations: %d\n", iteration);
-    printf("Final Error: %f\n", error);
+    printf("Final Error: %e\n", error);
+    printf("Final Residual: %e\n", square_diff);
     if (iteration > 10) {
         printf("Average iteration time: %lld us\n", avg_iteration_time);
         printf("Minimum iteration time: %lld us\n", min_iteration_time);
@@ -183,10 +176,14 @@ void finite_difference() {
     // Print all errors so you can copy them into Excel or other tools
     printf("\n[ERROR BY ITERATION]\n");
     for (size_t i = 0; i < errors.size(); i++) {
-        // iteration numbering starting from 1
         printf("%zu,%e\n", i+1, errors[i]);
     }
 
+    // Print all residuals similarly
+    printf("\n[RESIDUAL BY ITERATION]\n");
+    for (size_t i = 0; i < residuals.size(); i++) {
+        printf("%zu,%e\n", i+1, residuals[i]);
+    }
 }
 
 int main(int argc, char **argv) {

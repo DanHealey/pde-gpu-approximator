@@ -110,7 +110,7 @@ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, size_t N_
 
 void finite_difference() {
     const double x0 = 0, x1 = 1, y0 = 0, y1 = 1, z0 = 0, z1 = 1, tol = 1e-6;
-    const int N = 10;
+    const int N = 15;
     const double h = 1.0 / (N - 1);
     
     double max_time, min_time, avg_time;

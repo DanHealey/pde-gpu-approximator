@@ -2,6 +2,11 @@
 
 This project utilizes shared and distributed memory solutions to solve the 3D Poisson equation.
 
+## Authors
+- Melvin He
+- Daniel Healey
+- Michelle Liu
+
 ## Compiling
 - Devel parition in AMD: `salloc -p devel -t 00:30:00`
 - Baseline compilation: `g++ original.cpp -o original.out`
@@ -13,14 +18,15 @@ This project utilizes shared and distributed memory solutions to solve the 3D Po
 - Shared + GPU compilation: `hipcc shared_with_gpu.cu -o shared_gpu.out`
 - Shared + GPU run: `./shared_gpu.out`
 
-## Notes
-- We can use all techniques n the same code or in separate codes and compare
-- Red-black is not a requirement but may be interesting to explore
-
-Red-black method or some other optimization?
-- https://www3.nd.edu/~zxu2/acms60212-40212-S12/Lec-10-02.pdf
-
-https://edisciplinas.usp.br/pluginfile.php/41896/mod_resource/content/1/LeVeque%20Finite%20Diff.pdf
-- page 41 (on pdf)
-
-https://shenfun.readthedocs.io/en/latest/poisson3d.html
+## Profiler Inputs
+```
+   # Perf counters group 1
+   pmc : Wavefronts VALUInsts SALUInsts SFetchInsts
+   # Perf counters group 2
+   pmc : TCC_HIT[0], TCC_MISS[0]
+   # Filter by dispatches range, GPU index and kernel names
+   # supported range formats: "3:9", "3:", "3"
+   range: 1 : 4
+   gpu: 0 1 2 3
+   kernel: simple Pass1 simpleConvolutionPass2
+```

@@ -86,7 +86,7 @@ void finite_difference() {
     gettimeofday(&start_time, NULL);
 
     const double x0 = 0, x1 = 1, y0 = 0, y1 = 1, z0 = 0, z1 = 1, tol = 1e-6;
-    const int N = 10;
+    const int N = 15;
     const double h = 1.0 / (N - 1);
 
     double phi_actual[N * N * N]; // phi(x, y, z)

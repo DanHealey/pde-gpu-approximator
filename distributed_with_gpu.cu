@@ -142,7 +142,7 @@ void finite_difference() {
     const double z0 = 0;
     const double z1 = 1;
     const double tol = 1e-6;
-    const int N = 10;
+    const int N = 15;
     const double h = 1.0 / (N - 1);
 
     // Initialize MPI
