@@ -1,13 +1,16 @@
 # pde-gpu-approximator
 
-This project utilizes shared and distributed memory solutions to solve the 3D Poisson equation.
+This project utilizes shared and distributed memory solutions with OpenMP, MPI, and GPU methods to solve the 3D Poisson equation.
 
 ## Authors
 - Melvin He
 - Daniel Healey
 - Michelle Liu
 
-## Compiling
+## Report
+[View the report](./report.pdf)
+
+## Compiling & Executing
 - Devel parition in AMD: `salloc -p devel -t 00:30:00`
 - Baseline compilation: `g++ original.cpp -o original.out`
 - Baseline run: `./original.out`
