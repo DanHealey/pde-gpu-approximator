@@ -6,8 +6,8 @@ This project utilizes shared and distributed memory solutions to solve the 3D Po
 - Devel parition in AMD: `salloc -p devel -t 00:30:00`
 - Baseline compilation: `g++ original.cpp -o original.out`
 - Baseline run: `./original.out`
-- Shared compilation: `g++ shared.cpp -fopenmp -o shared.out`
-- Shared run: `OMP_NUM_THREADS=1 ./shared.out`
+- Shared compilation: `g++ shared.cpp -fopenmp -O3 -o shared.out`
+- Shared run: `OMP_NUM_THREADS=6 ./shared.out`
 - Distributed compilation: `mpic++ distributed.cpp -lm -o distributed.out`
 - Distributed run: `mpirun -np 1 ./distributed.out`
 - Shared + GPU compilation: `hipcc shared_with_gpu.cu -o shared_gpu.out`

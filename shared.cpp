@@ -5,26 +5,16 @@
 #include <iostream>
 #include <omp.h>
 #include <sys/time.h>
-
+#include <vector> // Added for storing errors in a dynamic array
 
 /* Task
     Goal: Solve for exact solution: phi = sin(n*π*x) * cos(m*π*y) * sin(k*π*z)
         n, m, k are integers
         x, y, z are in range 0 to 1
 
-    Given: f(x,y,z) = -(n²+m²+k²) π² cos(mπy) sin(nπx) sin(kπz)
-        ∂²f/∂x² = -n²π² * sin(nπx) * cos(mπy) * sin(kπz)
-        ∂²f/∂y² = -m²π² * cos(mπy) * sin(nπx) * sin(kπz)
-        ∂²f/∂z² = -k²π² * sin(kπz) * sin(nπx) * cos(mπy)
+    Given: f(x,y,z) = -(n²+m²+k²) π² cos(m π y) sin(n π x) sin(k π z)
 
     3D Poisson equation: (∂²/∂x² + ∂²/∂y² + ∂²/∂z²) phi(x,y,z) = f(x,y,z)
-        ∂²u/∂x² = (u[i-1,j,k] - 2*u[i,j,k] + u[i+1,j,k] ) / (Dx*Dx)
-        ∂²u/∂y² = (u[i,j-1,k] - 2*u[i,j,k] + u[i,j+1,k] ) / (Dy*Dy)
-        ∂²u/∂z² = (u[i,j,k-1] - 2*u[i,j,k] + u[i,j,k+1] ) / (Dz*Dz)
-
-    Algorithm: (dx=dy=dz=h=1/(N-1))
-        f(x,y,z) = (u[i-1,j,k]-2*u[i,j,k]+u[i+1,j,k] + u[i,j-1,k]-2*u[i,j,k]+u[i,j+1,k] + u[i,j,k-1]-2*u[i,j,k]+u[i,j,k+1]) / h^2
-        u[i,j,k] = (sum of 6 neighbors - f(x,y,z) * h^2) / 6
 */
 
 double const pi = 4 * atan(1.0);
@@ -41,7 +31,7 @@ double exact_phi(double x, double y, double z){
 }
 
 double f(double x, double y,  double z){
-    // -(k^2 + m^2 + n^2) π^2 cos(m π y) sin(n π x) sin(k π z)
+    // -(k^2 + m^2 + n^2) π² * cos(m π y) * sin(n π x) * sin(k π z)
     return -(k1*k1 + m1*m1 + n1*n1) * (pi*pi) * exact_phi(x, y, z);
 }
 
@@ -85,19 +75,19 @@ void update_phi(double* phi, double* phi_old, double* f_phi, size_t N, double h)
 
 void finite_difference() {
     // METRICS
-    long long min_iteration_time, max_iteration_time, total_time = 0, avg_iteration_time;
+    long long min_iteration_time, max_iteration_time, total_time = 0, avg_iteration_time = 0;
     struct timeval start_time, end_time, start_iter_time, end_iter_time;
 
     gettimeofday(&start_time, NULL);
 
     const double x0 = 0, x1 = 1, y0 = 0, y1 = 1, z0 = 0, z1 = 1, tol = 1e-6;
-    const int N = 10;
+    const int N = 60;
     const double h = 1.0 / (N - 1);
 
-    double phi_actual[N * N * N]; // phi(x, y, z)
-    double f_phi[N * N * N]; // f(x, y, z)
-    double phi[N * N * N]; // intermediate "new" phi(x, y, z)
-    double phi_old[N * N * N]; // intermediate "old" phi(x, y, z)
+    double phi_actual[N * N * N]; 
+    double f_phi[N * N * N]; 
+    double phi[N * N * N]; 
+    double phi_old[N * N * N]; 
 
     // Initialize matrices
     #pragma omp parallel for collapse(3)
@@ -121,6 +111,8 @@ void finite_difference() {
 
     double error = INFINITY, square_diff = 0.0;
     int iteration = 1;
+
+    std::vector<double> errors; // store error each iteration
 
     do {
         gettimeofday(&start_iter_time, NULL);
@@ -155,9 +147,12 @@ void finite_difference() {
             }
         }
 
+        // Store the error in the vector
+        errors.push_back(error);
+
         // Start tracking from 10th iteration
+        gettimeofday(&end_iter_time, NULL);
         if (iteration >= 10) {
-            gettimeofday(&end_iter_time, NULL);
             long long iteration_time = time_diff(start_iter_time, end_iter_time);
             if (iteration == 10) {
                 min_iteration_time = iteration_time;
@@ -174,17 +169,25 @@ void finite_difference() {
     } while (square_diff > tol);
 
     gettimeofday(&end_time, NULL);
-    total_time = time_diff(start_time, end_time);
 
+    // Print final results
     printf("[FINAL RESULT]\n");
-    printf("Total computation time: %lld us\n", total_time);
-    printf("Average iteration time: %lld us\n", avg_iteration_time);
-    printf("Minimum iteration time: %lld us\n", min_iteration_time);
-    printf("Maximum iteration time: %lld us\n", max_iteration_time);
     printf("Iterations: %d\n", iteration);
-    printf("Error: %f\n", error);
-}
+    printf("Final Error: %f\n", error);
+    if (iteration > 10) {
+        printf("Average iteration time: %lld us\n", avg_iteration_time);
+        printf("Minimum iteration time: %lld us\n", min_iteration_time);
+        printf("Maximum iteration time: %lld us\n", max_iteration_time);
+    }
 
+    // Print all errors so you can copy them into Excel or other tools
+    printf("\n[ERROR BY ITERATION]\n");
+    for (size_t i = 0; i < errors.size(); i++) {
+        // iteration numbering starting from 1
+        printf("%zu,%e\n", i+1, errors[i]);
+    }
+
+}
 
 int main(int argc, char **argv) {
     finite_difference();   
