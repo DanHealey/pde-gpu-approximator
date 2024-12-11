@@ -32,8 +32,6 @@ double const n1 = 2;
 double const m1 = 2;
 double const k1 = 2;
 
-int rank, size;
-
 double exact_phi(double x, double y, double z){
     return sin(n1*pi*x)*cos(m1*pi*y)*sin(k1*pi*z);
 }
@@ -59,12 +57,12 @@ void generate_boundaries(double* mat, size_t N, size_t N_local, int size, double
     }
 }
 
-void update_phi_boundary(double* phi, double* phi_old, double* f_phi, size_t N, size_t N_local, double h, double* top_buf, double* bottom_buf) {
+void update_phi_boundary(double* phi, double* phi_old, double* f_phi, size_t N, size_t N_local, double h, double* top_buf, double* bottom_buf, int rank, int size) {
     // Update boundary points with received buffer
     if (rank < size - 1) {
-        for (size_t j = 0; j < N; j++) {
-            for (size_t i = 0; i < N; i++) {
-                int k = N_local - 1;
+        size_t k = N_local - 1;
+        for (size_t j = 1; j < N - 1; j++) {
+            for (size_t i = 1; i < N - 1; i++) {
                 phi[i + j*N + k*N*N] = (
                     phi_old[(i-1) + j*N + k*N*N] +
                     phi_old[(i+1) + j*N + k*N*N] +
@@ -77,15 +75,15 @@ void update_phi_boundary(double* phi, double* phi_old, double* f_phi, size_t N, 
         }
     }
     if (rank > 0) {
-        for (size_t j = 0; j < N; j++) {
-            for (size_t i = 0; i < N; i++) {
-                int k = 0;
+        size_t k = 0;
+        for (size_t j = 1; j < N - 1; j++) {
+            for (size_t i = 1; i < N - 1; i++) {
                 phi[i + j*N + k*N*N] = (
                     phi_old[(i-1) + j*N + k*N*N] +
                     phi_old[(i+1) + j*N + k*N*N] +
                     phi_old[i + (j-1)*N + k*N*N] +
-                    phi_old[i + j*N + (k+1)*N*N] -
-                    bottom_buf[i + j*N] + 
+                    phi_old[i + j*N + (k+1)*N*N] +
+                    bottom_buf[i + j*N] - 
                     f_phi[i + j*N + k*N*N] * (h*h)) / 6.0;
             }
         }
@@ -187,7 +185,7 @@ void finite_difference() {
         update_phi(phi, phi_old, f_phi, N, N_local, h);
         
         // Update boundary
-        update_phi_boundary(phi, phi_old, f_phi, N, N_local, h, top_buf, bottom_buf);
+        update_phi_boundary(phi, phi_old, f_phi, N, N_local, h, top_buf, bottom_buf, rank, size);
 
         // Calculate local convergence and error
         local_conv = 0;
