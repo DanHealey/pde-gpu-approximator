@@ -234,18 +234,20 @@ void finite_difference() {
 
     do {
         MPI_Request requests[4];
-        
+        int req_count = 0;
         // Send bottom to rank+1 & receive top
-        if (rank < size - 1){
-            MPI_Isend(phi + N * N * (N_local - 1), N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[0]);
-            MPI_Irecv(top_buf, N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[2]);
-            MPI_Wait(&requests[2], MPI_STATUS_IGNORE);
+        if (rank < size - 1) {
+            MPI_Isend(phi + N * N * (N_local - 1), N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[req_count++]);
+            MPI_Irecv(top_buf, N * N, MPI_DOUBLE, rank + 1, 0, comm, &requests[req_count++]);
         }
         // Send top to rank-1 & receive bottom
-        if (rank > 0){
-            MPI_Isend(phi, N * N, MPI_DOUBLE, rank - 1, 0, comm, &requests[1]);
-            MPI_Irecv(bottom_buf, N * N, MPI_DOUBLE, rank - 1, 0, comm, &requests[3]);
-            MPI_Wait(&requests[3], MPI_STATUS_IGNORE);
+        if (rank > 0) {
+            MPI_Isend(phi, N * N, MPI_DOUBLE, rank - 1, 0, comm, &requests[req_count++]);
+            MPI_Irecv(bottom_buf, N * N, MPI_DOUBLE, rank - 1, 0, comm, &requests[req_count++]);
+        }
+        // Wait for all requests at once
+        if (req_count > 0) {
+            MPI_Waitall(req_count, requests, MPI_STATUSES_IGNORE);
         }
 
         // Copy top buffer, bottom buffer to GPU
